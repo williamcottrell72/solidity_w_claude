@@ -49,5 +49,8 @@ module.exports = {
   contracts_build_directory: "./build/contracts",
 
   // Configure migrations
-  migrations_directory: "./migrations"
+  migrations_directory: "./migrations",
+
+  // Test directory - separate from Hardhat tests (outside test/ to avoid conflicts)
+  test_directory: "./test-truffle"
 };

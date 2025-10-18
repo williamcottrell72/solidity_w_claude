@@ -1,53 +1,57 @@
-const SimpleStorage = artifacts.require("SimpleStorage");
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
 
-contract("SimpleStorage", (accounts) => {
-  it("should store and retrieve a value", async () => {
-    const instance = await SimpleStorage.deployed();
+describe("SimpleStorage", function () {
+  let simpleStorage;
 
-    // Set value to 42
-    await instance.set(42);
-
-    // Get the value
-    const value = await instance.get();
-
-    assert.equal(value.toString(), "42", "The value should be 42");
+  beforeEach(async function () {
+    const SimpleStorage = await ethers.getContractFactory("SimpleStorage");
+    simpleStorage = await SimpleStorage.deploy();
+    await simpleStorage.waitForDeployment();
   });
 
-  it("should emit ValueChanged event", async () => {
-    const instance = await SimpleStorage.deployed();
-
-    // Set value and capture transaction result
-    const result = await instance.set(100);
-
-    // Check event was emitted
-    assert.equal(result.logs[0].event, "ValueChanged");
-    assert.equal(result.logs[0].args.newValue.toString(), "100");
+  it("should start with initial value of 0", async function () {
+    expect(await simpleStorage.get()).to.equal(0);
   });
 
-  it("should start with initial value of 0", async () => {
-    const instance = await SimpleStorage.new();
-
-    const value = await instance.get();
-
-    assert.equal(value.toString(), "0", "Initial value should be 0");
+  it("should store and retrieve a value", async function () {
+    await simpleStorage.set(42);
+    expect(await simpleStorage.get()).to.equal(42);
   });
 
-  it("should allow multiple value updates", async () => {
-    const instance = await SimpleStorage.deployed();
+  it("should emit ValueChanged event", async function () {
+    await expect(simpleStorage.set(100))
+      .to.emit(simpleStorage, "ValueChanged")
+      .withArgs(100);
+  });
 
+  it("should allow multiple value updates", async function () {
     // Set first value
-    await instance.set(10);
-    let value = await instance.get();
-    assert.equal(value.toString(), "10", "Value should be 10");
+    await simpleStorage.set(10);
+    expect(await simpleStorage.get()).to.equal(10);
 
     // Set second value
-    await instance.set(20);
-    value = await instance.get();
-    assert.equal(value.toString(), "20", "Value should be 20");
+    await simpleStorage.set(20);
+    expect(await simpleStorage.get()).to.equal(20);
 
     // Set third value
-    await instance.set(30);
-    value = await instance.get();
-    assert.equal(value.toString(), "30", "Value should be 30");
+    await simpleStorage.set(30);
+    expect(await simpleStorage.get()).to.equal(30);
+  });
+
+  it("should handle max uint256 value", async function () {
+    const maxValue = ethers.MaxUint256;
+    await simpleStorage.set(maxValue);
+    expect(await simpleStorage.get()).to.equal(maxValue);
+  });
+
+  it("should be able to set value to 0", async function () {
+    // First set a non-zero value
+    await simpleStorage.set(100);
+    expect(await simpleStorage.get()).to.equal(100);
+
+    // Then set to zero
+    await simpleStorage.set(0);
+    expect(await simpleStorage.get()).to.equal(0);
   });
 });

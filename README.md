@@ -46,8 +46,10 @@ This project supports **Hardhat**, **Foundry**, and **Truffle** deployment metho
 ├── foundry-tests/                  # Foundry test directory (Solidity tests)
 │   ├── SimpleStorage.t.sol         # Foundry tests for SimpleStorage
 │   └── Counter.t.sol               # Foundry default test
-├── test/                           # Truffle/Hardhat test directory (JavaScript tests)
-│   └── SimpleStorage.test.js       # Truffle/Hardhat tests for SimpleStorage
+├── test/                           # Hardhat test directory (JavaScript tests)
+│   └── SimpleStorage.test.js       # Hardhat tests for SimpleStorage
+├── test-truffle/                   # Truffle test directory (JavaScript tests)
+│   └── SimpleStorage.test.js       # Truffle tests for SimpleStorage
 ├── foundry.toml                    # Foundry configuration
 ├── hardhat.config.js               # Hardhat configuration
 ├── truffle-config.js               # Truffle configuration
@@ -57,8 +59,9 @@ This project supports **Hardhat**, **Foundry**, and **Truffle** deployment metho
 
 **Note on Test Directory Structure:**
 - **`foundry-tests/`**: Contains Solidity test files (`.t.sol`) for Foundry, which use `forge-std` library
-- **`test/`**: Contains JavaScript test files (`.test.js`) for Truffle and Hardhat
-- This separation ensures compatibility between Foundry and Truffle, as they use different testing frameworks and dependencies
+- **`test/`**: Contains JavaScript test files (`.test.js`) for Hardhat, which use ethers.js and Chai
+- **`test-truffle/`**: Contains JavaScript test files (`.test.js`) for Truffle, which use Truffle's artifacts API
+- This three-way separation ensures compatibility between all frameworks, as each uses different testing APIs and dependencies
 
 ## Important Configuration Notes
 
@@ -100,16 +103,36 @@ This ensures that Truffle-compiled contracts work with Ganache as well.
 
 ### Test Directory Configuration
 
-**Foundry (foundry.toml)**:
+This project uses three separate test directories to ensure compatibility between all three frameworks:
 
+**Foundry (foundry.toml)**:
 ```toml
 test = "foundry-tests"
 ```
+- Foundry tests use Solidity (`.t.sol` files) and the `forge-std` library
+- Located in `foundry-tests/` to keep them separate from JavaScript tests
 
-Foundry tests are located in the `foundry-tests/` directory to keep them separate from Truffle/Hardhat JavaScript tests. This separation is necessary because:
-- Foundry tests (`.t.sol`) use the `forge-std` library which Truffle cannot compile
-- Truffle scans the `test/` directory and would try to compile any `.sol` files it finds there
-- Keeping them separate prevents compilation conflicts between the two frameworks
+**Hardhat (hardhat.config.js)**:
+```javascript
+// Uses default test directory: ./test
+```
+- Hardhat tests use JavaScript/TypeScript with ethers.js and Chai
+- Located in `test/` directory
+- Use `describe()` and `it()` syntax from Mocha/Chai
+
+**Truffle (truffle-config.js)**:
+```javascript
+test_directory: "./test-truffle"
+```
+- Truffle tests use JavaScript with Truffle's `artifacts.require()` API
+- Located in `test-truffle/` to keep them separate from Hardhat tests
+- Use `contract()` and `it()` syntax from Truffle's test framework
+
+This three-way separation is necessary because:
+- Foundry tests use Solidity and `forge-std`, which JavaScript frameworks cannot run
+- Hardhat and Truffle use different JavaScript APIs (`ethers.js` vs `artifacts.require()`)
+- Hardhat would try to run Truffle tests and fail because `artifacts.require()` is not available in Hardhat
+- Keeping them separate prevents conflicts and allows each framework to work independently
 
 ## Setup
 
@@ -633,22 +656,14 @@ forge test --gas-report
 
 ### Hardhat Tests
 
-Create JavaScript test files in the `test/` directory. Example test file (`test/SimpleStorage.test.js`):
+This project includes comprehensive tests in `test/SimpleStorage.test.js` that verify:
+- Initial state (value starts at 0)
+- Storing and retrieving values
+- Event emissions (ValueChanged event)
+- Multiple value updates
+- Edge cases (max uint256, setting to zero)
 
-```javascript
-const { expect } = require("chai");
-
-describe("SimpleStorage", function () {
-  it("Should store and retrieve a value", async function () {
-    const SimpleStorage = await ethers.getContractFactory("SimpleStorage");
-    const simpleStorage = await SimpleStorage.deploy();
-    await simpleStorage.waitForDeployment();
-
-    await simpleStorage.set(42);
-    expect(await simpleStorage.get()).to.equal(42);
-  });
-});
-```
+The tests use ethers.js and Chai assertion library.
 
 Run tests with:
 
@@ -656,9 +671,22 @@ Run tests with:
 npm test
 ```
 
+Example output:
+```
+SimpleStorage
+  ✔ should start with initial value of 0
+  ✔ should store and retrieve a value
+  ✔ should emit ValueChanged event
+  ✔ should allow multiple value updates
+  ✔ should handle max uint256 value
+  ✔ should be able to set value to 0
+
+6 passing (562ms)
+```
+
 ### Truffle Tests
 
-This project includes comprehensive Truffle tests in `test/SimpleStorage.test.js` that verify:
+This project includes comprehensive Truffle tests in `test-truffle/SimpleStorage.test.js` that verify:
 - Storing and retrieving values
 - Event emissions
 - Initial state
@@ -701,6 +729,14 @@ truffle test --show-events
 2. **Compilation errors**: Make sure you're using Solidity 0.8.20 or compatible version
 
 3. **Deployment fails**: Ensure the contract compiles successfully first with `npm run compile`
+
+4. **"TypeError: artifacts.require is not a function"**:
+   - This error occurs when Hardhat tries to run Truffle test files
+   - **Solution**: This project separates Hardhat and Truffle tests:
+     - Hardhat tests are in `test/` directory (use `ethers.js` and `describe()`)
+     - Truffle tests are in `test-truffle/` directory (use `artifacts.require()` and `contract()`)
+   - Make sure you don't have Truffle test files (using `artifacts.require()`) in the `test/` directory
+   - Run `npm test` for Hardhat tests, `truffle test` for Truffle tests
 
 ### Ganache Issues
 
