@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Hardhat
+artifacts/
+cache/
+coverage/
+typechain/
+typechain-types/
+
+# Foundry
+out/
+cache_forge/
+broadcast/
+lib/
+
+# Truffle
+build/
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
