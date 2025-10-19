@@ -6,11 +6,17 @@ script = "script"
 test = "foundry-tests"
 
 # Solidity compiler version
-solc_version = "0.8.20"
+solc_version = "0.8.22"
 
 # EVM version to target (set to "paris" for Ganache compatibility)
 # Ganache doesn't support the PUSH0 opcode introduced in EIP-3855 (Shanghai)
 # Using "paris" ensures compatibility with Ganache while still using Solidity 0.8.20+
 evm_version = "paris"
+
+# Remappings for OpenZeppelin contracts
+remappings = [
+    "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/"
+]
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

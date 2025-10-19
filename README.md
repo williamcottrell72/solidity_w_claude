@@ -36,18 +36,21 @@ This project supports **Hardhat**, **Foundry**, and **Truffle** deployment metho
 ```
 .
 ├── contracts/
-│   └── SimpleStorage.sol           # Main smart contract
+│   ├── SimpleStorage.sol           # Simple storage contract
+│   └── MC3Coin.sol                 # Upgradeable ERC20 token with admin features
 ├── script/
 │   └── DeploySimpleStorage.s.sol   # Foundry deployment script (Solidity)
 ├── scripts/
-│   └── deploy.js                   # Hardhat deployment script (JavaScript)
+│   ├── deploy.js                   # Hardhat deployment script for SimpleStorage
+│   └── deployMC3Coin.js            # Hardhat deployment script for MC3Coin
 ├── migrations/
 │   └── 1_deploy_contracts.js       # Truffle migration script
 ├── foundry-tests/                  # Foundry test directory (Solidity tests)
 │   ├── SimpleStorage.t.sol         # Foundry tests for SimpleStorage
 │   └── Counter.t.sol               # Foundry default test
 ├── test/                           # Hardhat test directory (JavaScript tests)
-│   └── SimpleStorage.test.js       # Hardhat tests for SimpleStorage
+│   ├── SimpleStorage.test.js       # Hardhat tests for SimpleStorage
+│   └── MC3Coin.test.js             # Hardhat tests for MC3Coin
 ├── test-truffle/                   # Truffle test directory (JavaScript tests)
 │   └── SimpleStorage.test.js       # Truffle tests for SimpleStorage
 ├── foundry.toml                    # Foundry configuration
@@ -91,7 +94,7 @@ The `truffle-config.js` file also includes the same compatibility setting:
 ```javascript
 compilers: {
   solc: {
-    version: "0.8.20",
+    version: "0.8.22",
     settings: {
       evmVersion: "paris"  // Ganache compatibility
     }
@@ -544,13 +547,98 @@ The contract provides two main functions:
 Events:
 - `ValueChanged(uint256 newValue)`: Emitted when a value is stored
 
+### MC3Coin.sol
+
+MC3Coin is an upgradeable ERC20 token with advanced features for admin management, minting/burning, and built-in buy/sell functionality.
+
+#### Key Features
+
+- **Upgradeable**: Uses UUPS (Universal Upgradeable Proxy Standard) pattern for upgradeability
+- **Admin Management**: Owner can add/remove administrators
+- **Controlled Minting/Burning**: Only admins can mint and burn tokens
+- **Buy/Sell Mechanism**: Users can buy tokens from and sell tokens back to the contract
+- **Price Management**: Owner can adjust the token price
+- **Initial Supply**: 1,000,000 MC3 tokens minted to deployer on initialization
+
+#### Contract Functions
+
+**Admin Management:**
+- `addAdmin(address admin)`: Add a new admin (owner only)
+- `removeAdmin(address admin)`: Remove an admin (owner only)
+- `isAdmin(address account)`: Check if an address is an admin
+
+**Token Operations:**
+- `mint(address to, uint256 amount)`: Mint tokens (admin only)
+- `burn(uint256 amount)`: Burn tokens from caller (admin only)
+- `burnFrom(address from, uint256 amount)`: Burn tokens from address (admin only)
+
+**Trading:**
+- `buyTokens()`: Buy tokens by sending ETH to contract (anyone)
+- `sellTokens(uint256 amount)`: Sell tokens back to contract for ETH (anyone)
+- `tokenPrice`: Current price in wei per token (default: 0.01 ETH per MC3)
+
+**Contract Management:**
+- `setTokenPrice(uint256 newPrice)`: Update token price (owner only)
+- `withdrawETH(uint256 amount)`: Withdraw ETH from contract (owner only)
+- `getContractBalance()`: View contract's ETH balance
+
+**Events:**
+- `AdminAdded(address indexed admin)`: Emitted when admin is added
+- `AdminRemoved(address indexed admin)`: Emitted when admin is removed
+- `TokensPurchased(address indexed buyer, uint256 amount, uint256 cost)`: Emitted on token purchase
+- `TokensSold(address indexed seller, uint256 amount, uint256 payment)`: Emitted on token sale
+- `PriceUpdated(uint256 newPrice)`: Emitted when price is updated
+
+#### Deploying MC3Coin
+
+**Using Hardhat:**
+```bash
+npx hardhat run scripts/deployMC3Coin.js
+```
+
+This will:
+1. Deploy the MC3Coin implementation contract
+2. Deploy a UUPS proxy pointing to the implementation
+3. Initialize the contract (mint 1M tokens, set price, add deployer as admin)
+4. Test the buy functionality
+
+**Deploy to Ganache:**
+```bash
+npx hardhat run scripts/deployMC3Coin.js --network ganache
+```
+
+#### Example Usage
+
+```javascript
+// Get contract instance
+const mc3Coin = await ethers.getContractAt("MC3Coin", proxyAddress);
+
+// Buy tokens (send 1 ETH to get 100 MC3)
+await mc3Coin.buyTokens({ value: ethers.parseEther("1") });
+
+// Check balance
+const balance = await mc3Coin.balanceOf(userAddress);
+
+// Sell tokens back
+await mc3Coin.sellTokens(ethers.parseEther("50"));
+
+// Admin: Mint new tokens
+await mc3Coin.mint(recipientAddress, ethers.parseEther("1000"));
+
+// Owner: Add new admin
+await mc3Coin.addAdmin(newAdminAddress);
+
+// Owner: Update price
+await mc3Coin.setTokenPrice(ethers.parseEther("0.02"));
+```
+
 ## Interacting with the Contract
 
 ### Using Foundry Cast
 
 After deploying with Foundry, you can interact with the contract using `cast`:
 
-```bash
+```bash`
 # Set the contract address (replace with your deployed address)
 CONTRACT_ADDRESS=0x5FbDB2315678afecb367f032d93F642f64180aa3
 
@@ -726,7 +814,7 @@ truffle test --show-events
 
 1. **"Cannot find module" errors**: Run `npm install` to install dependencies
 
-2. **Compilation errors**: Make sure you're using Solidity 0.8.20 or compatible version
+2. **Compilation errors**: Make sure you're using Solidity 0.8.22 or compatible version
 
 3. **Deployment fails**: Ensure the contract compiles successfully first with `npm run compile`
 
@@ -788,7 +876,14 @@ truffle test --show-events
 
 4. **Compilation errors**: Make sure your contract is in the `contracts/` directory and Solidity version matches in `truffle-config.js`
 
-5. **"Could not connect to your Ethereum client"**:
+5. **"Source file requires different compiler version" error**:
+   - **Problem**: Contract pragma doesn't match Truffle compiler version
+   - **Symptoms**: Error like "Truffle is currently using solc 0.8.X, but one or more of your contracts specify 'pragma solidity ^0.8.Y'"
+   - **Solution**: This project uses Solidity 0.8.22 (required for MC3Coin upgradeable contract)
+   - Ensure `truffle-config.js` has `version: "0.8.22"` in the compilers section
+   - The project is already configured correctly - if you see this error, the config may have been modified
+
+6. **"Could not connect to your Ethereum client"**:
    - Make sure Ganache (or another local blockchain) is running
    - Verify the network configuration in `truffle-config.js` matches your blockchain's port and network ID
    - For Ganache GUI: default is `127.0.0.1:7545` with network ID 5777
