@@ -47,7 +47,7 @@ contract MC3Coin is Initializable, ERC20Upgradeable, OwnableUpgradeable, UUPSUpg
         tokenPrice = 0.01 ether;
 
         // Mint 1,000,000 tokens (with 18 decimals) to deployer
-        _mint(msg.sender, 1_000_000 * 10**decimals());
+        _mint(msg.sender, 1_000_000 * 10 ** decimals());
 
         // Make deployer an admin
         admins[msg.sender] = true;
@@ -134,7 +134,7 @@ contract MC3Coin is Initializable, ERC20Upgradeable, OwnableUpgradeable, UUPSUpg
         require(msg.value > 0, "MC3Coin: must send ETH to buy tokens");
 
         // Calculate token amount: (msg.value * 10**decimals()) / tokenPrice
-        uint256 tokenAmount = (msg.value * 10**decimals()) / tokenPrice;
+        uint256 tokenAmount = (msg.value * 10 ** decimals()) / tokenPrice;
         require(tokenAmount > 0, "MC3Coin: insufficient ETH for 1 token");
 
         // Mint tokens to buyer
@@ -153,14 +153,14 @@ contract MC3Coin is Initializable, ERC20Upgradeable, OwnableUpgradeable, UUPSUpg
         require(balanceOf(msg.sender) >= amount, "MC3Coin: insufficient token balance");
 
         // Calculate ETH payment: (amount * tokenPrice) / 10**decimals()
-        uint256 ethPayment = (amount * tokenPrice) / 10**decimals();
+        uint256 ethPayment = (amount * tokenPrice) / 10 ** decimals();
         require(address(this).balance >= ethPayment, "MC3Coin: insufficient contract ETH balance");
 
         // Burn tokens from seller
         _burn(msg.sender, amount);
 
         // Send ETH to seller
-        (bool success, ) = msg.sender.call{value: ethPayment}("");
+        (bool success,) = msg.sender.call{value: ethPayment}("");
         require(success, "MC3Coin: ETH transfer failed");
 
         emit TokensSold(msg.sender, amount, ethPayment);
@@ -183,7 +183,7 @@ contract MC3Coin is Initializable, ERC20Upgradeable, OwnableUpgradeable, UUPSUpg
      */
     function withdrawETH(uint256 amount) external onlyOwner {
         require(address(this).balance >= amount, "MC3Coin: insufficient balance");
-        (bool success, ) = owner().call{value: amount}("");
+        (bool success,) = owner().call{value: amount}("");
         require(success, "MC3Coin: ETH transfer failed");
     }
 
