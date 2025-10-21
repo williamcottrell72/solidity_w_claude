@@ -1,6 +1,6 @@
-# Simple Storage Smart Contract
+# Smart Contract Tooling and Examples
 
-A simple Solidity smart contract for testing your development setup. This contract allows you to store and retrieve a single `uint256` value.
+Two simple Solidity smart contract for testing your development setup. The first, SimpleStorage, allows you to store and retrieve a single `uint256` value.  The second, MC3Coin, illustrates the upgradeable proxy pattern.
 
 This project supports **Hardhat**, **Foundry**, and **Truffle** deployment methods, giving you flexibility to use your preferred development framework.
 
@@ -631,6 +631,46 @@ await mc3Coin.addAdmin(newAdminAddress);
 // Owner: Update price
 await mc3Coin.setTokenPrice(ethers.parseEther("0.02"));
 ```
+
+#### Launching & Upgrading MC3Coin (UUPS Proxy)
+
+**Launch the proxy**
+- `npx hardhat run scripts/deployMC3Coin.js --network <network>` deploys the MC3Coin implementation and a UUPS proxy, then runs the initializer on the proxy. The script prints both the proxy and implementation addresses; record the proxy address because all future interactions (and upgrades) target it.
+- At any time you can confirm the current logic contract with `npx hardhat console --network <network>` and:
+  ```javascript
+  const { upgrades } = require("hardhat");
+  await upgrades.erc1967.getImplementationAddress("<proxy-address>");
+  ```
+
+**Prepare an upgrade**
+- Create a new implementation contract (for example `MC3CoinV2`) that inherits from the current version and only appends new state variables at the end of the storage layout. Never reorder, rename, or remove existing storage slots; the proxy keeps the storage, so changing the layout would corrupt state.
+- Recompile to generate the new bytecode: `npx hardhat compile`.
+
+**Execute the upgrade**
+- From a script or the Hardhat console, call `upgrades.upgradeProxy` with the proxy address. Sample upgrade script:
+  ```javascript
+  const { ethers, upgrades } = require("hardhat");
+
+  async function main() {
+    const proxyAddress = "0xYourProxyAddress";
+    const MC3CoinV2 = await ethers.getContractFactory("MC3CoinV2");
+    const upgraded = await upgrades.upgradeProxy(proxyAddress, MC3CoinV2);
+    await upgraded.waitForDeployment();
+
+    console.log("Proxy upgraded. New implementation:",
+      await upgrades.erc1967.getImplementationAddress(proxyAddress));
+  }
+
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+  ```
+- The proxy address stays the same, and all balances, admin mappings, and other storage values remain intact because the upgrade swaps only the implementation logic.
+
+**Verify after upgrading**
+- Re-run key read functions (`name()`, `totalSupply()`, `tokenPrice()`, etc.) against the proxy to confirm state persisted.
+- Optionally run your test suite (`npm test` or `forge test`) against the new implementation before or after the upgrade to validate new behaviour.
 
 ## Interacting with the Contract
 
